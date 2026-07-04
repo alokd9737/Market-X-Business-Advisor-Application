@@ -20,6 +20,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+MARKET_X_LOGO = "https://img1.wsimg.com/isteam/ip/73381f5a-c5c8-48ff-85ba-7bcd5aec9928/Untitled%20design%20(8).png"
+MARKET_X_WEBSITE = "https://market-x.co.in/"
+
 
 # =========================================================
 # SAFE SECRET READER
@@ -50,8 +53,57 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 1.4rem;
+        padding-top: 1.2rem;
         padding-bottom: 2rem;
+    }
+
+    /* Top brand bar */
+    .brand-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 12px 22px;
+        margin-bottom: 18px;
+        box-shadow: 0px 6px 18px rgba(15,23,42,0.06);
+    }
+
+    .brand-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .brand-name {
+        font-size: 20px;
+        font-weight: 850;
+        color: #0f172a;
+        letter-spacing: 0.3px;
+    }
+
+    .brand-tag {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    .brand-link a {
+        text-decoration: none;
+        color: #0f766e;
+        font-weight: 700;
+        font-size: 14px;
+        border: 1.5px solid #0f766e;
+        padding: 8px 16px;
+        border-radius: 999px;
+    }
+
+    .brand-link a:hover {
+        background: #0f766e;
+        color: white;
     }
 
     .hero-box {
@@ -185,6 +237,12 @@ st.markdown(
         color: #64748b;
         font-size: 13px;
         padding-top: 12px;
+    }
+
+    .footer a {
+        color: #0f766e;
+        font-weight: 700;
+        text-decoration: none;
     }
     </style>
     """,
@@ -592,6 +650,8 @@ IMPORTANT NOTE
 This report is a high-level advisory output generated using the Market X Growth Intelligence Advisor.
 A detailed consulting engagement should include primary market research, distributor due diligence,
 retailer mapping, competitor benchmarking, channel economics, and execution governance.
+
+Prepared by Market X | {MARKET_X_WEBSITE}
 """
     return report
 
@@ -612,7 +672,7 @@ def call_groq_llm(user_query, context, service_area, diagnostic_data=None):
         model = get_secret("GROQ_MODEL", "llama-3.1-8b-instant")
 
         if api_key == "":
-            return None, "Groq API key missing."
+            return None, "AI advisory engine is not configured."
 
         diagnostic_json = json.dumps(diagnostic_data or {}, indent=2)
 
@@ -696,7 +756,7 @@ Explain 4-6 specific consulting workstreams.
 List the missing data required for deeper advisory.
 """
 
-        url = "[api.groq.com](https://api.groq.com/openai/v1/chat/completions)"
+        url = "https://api.groq.com/openai/v1/chat/completions"
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -727,15 +787,15 @@ List the missing data required for deeper advisory.
         )
 
         if response.status_code != 200:
-            return None, f"Groq API error: {response.status_code} - {response.text}"
+            return None, "AI advisory engine is temporarily unavailable."
 
         data = response.json()
         answer = data["choices"][0]["message"]["content"]
 
         return answer, None
 
-    except Exception as e:
-        return None, str(e)
+    except Exception:
+        return None, "AI advisory engine is temporarily unavailable."
 
 
 # =========================================================
@@ -807,7 +867,7 @@ def generate_response(query, diagnostic_data=None):
 This advisor is designed for business, consulting, FMCG, dairy, agriculture, distribution, branding, market research, government projects, and growth strategy questions.
 
 Please share a business challenge related to market expansion, sales growth, channel development, brand building, route-to-market, or business transformation.
-""", "Blocked: Non-business question"
+"""
 
     context, source_file = retrieve_context(query, documents, file_names)
     service_area = identify_service(query)
@@ -815,10 +875,9 @@ Please share a business challenge related to market expansion, sales growth, cha
     llm_answer, error = call_groq_llm(query, context, service_area, diagnostic_data)
 
     if llm_answer:
-        return llm_answer, f"Groq LLM | Knowledge files: {source_file or 'No specific file matched'}"
+        return llm_answer
 
-    fallback = fallback_response(context, service_area)
-    return fallback, f"Fallback used. Reason: {error}"
+    return fallback_response(context, service_area)
 
 
 # =========================================================
@@ -836,6 +895,28 @@ def save_lead(data):
         final_data = new_lead
 
     final_data.to_csv(lead_file, index=False)
+
+
+# =========================================================
+# BRAND BAR
+# =========================================================
+st.markdown(
+    f"""
+    <div class="brand-bar">
+        <div class="brand-left">
+            <img src="{MARKET_X_LOGO}" style="height:44px; border-radius:8px;" />
+            <div>
+                <div class="brand-name">MARKET X</div>
+                <div class="brand-tag">Strategy &nbsp;•&nbsp; Brand &nbsp;•&nbsp; Transformation</div>
+            </div>
+        </div>
+        <div class="brand-link">
+            <a href="{MARKET_X_WEBSITE}" target="_blank">Visit market-x.co.in →</a>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 
 # =========================================================
@@ -913,9 +994,18 @@ st.markdown("---")
 
 
 # =========================================================
-# SIDEBAR
+# SIDEBAR (client-facing — no internal engineering details)
 # =========================================================
 with st.sidebar:
+    st.markdown(
+        f"""
+        <div style="text-align:center; margin-bottom: 10px;">
+            <img src="{MARKET_X_LOGO}" style="height:56px; border-radius:8px;" />
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     st.header("Advisor Console")
 
     st.markdown("### Advisory Modules")
@@ -933,27 +1023,27 @@ with st.sidebar:
         ]
     )
 
-    st.markdown("### AI Status")
-    groq_key = get_secret("GROQ_API_KEY", "")
-
-    if groq_key:
-        st.success("Groq API connected")
-    else:
-        st.warning("Groq API key missing. Fallback mode active.")
-
-    st.markdown("### Model")
-    st.code(get_secret("GROQ_MODEL", "llama-3.1-8b-instant"))
-
     st.markdown("---")
 
-    st.markdown("### What This App Now Does")
+    st.markdown("### What This Advisor Delivers")
     st.write("- Expansion readiness scoring")
     st.write("- Consulting-style diagnosis")
     st.write("- 30-60-90 day roadmap")
     st.write("- KPI dashboard")
     st.write("- Risk and mitigation matrix")
     st.write("- Downloadable advisory note")
-    st.write("- Qualified lead capture")
+
+    st.markdown("---")
+    st.markdown(
+        f"""
+        <div class="small-text">
+        Want a deeper, human-led engagement? Visit
+        <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in</a>
+        or use the Consultation Request tab.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # =========================================================
@@ -1013,24 +1103,21 @@ with tab1:
                 "advisory_mode": advisory_mode
             }
 
-            with st.spinner("Preparing consulting-grade advisory note..."):
-                answer, source = generate_response(user_query, diagnostic_data)
+            with st.spinner("Preparing your consulting-grade advisory note..."):
+                answer = generate_response(user_query, diagnostic_data)
 
             st.session_state["latest_answer"] = answer
             st.session_state["latest_query"] = user_query
-            st.session_state["latest_source"] = source
 
             st.markdown("### Advisor Response")
             st.markdown(answer)
-
-            with st.expander("Technical response source"):
-                st.write(source)
 
     if "latest_answer" in st.session_state:
         st.markdown(
             """
             <div class="success-box">
-                <b>Boardroom-ready next step:</b> Use the Expansion Diagnostic tab to convert this advisory into a more qualified market-entry report.
+                <b>Boardroom-ready next step:</b> Use the Expansion Diagnostic tab to convert this advisory into a more qualified market-entry report,
+                or submit a Consultation Request to work directly with the Market X team.
             </div>
             """,
             unsafe_allow_html=True
@@ -1174,14 +1261,13 @@ with tab2:
         """
 
         with st.spinner("Running Market X diagnostic..."):
-            advisor_answer, source = generate_response(diagnostic_query, diagnostic_data)
+            advisor_answer = generate_response(diagnostic_query, diagnostic_data)
 
         st.session_state["diagnostic_answer"] = advisor_answer
         st.session_state["diagnostic_score"] = score
         st.session_state["diagnostic_status"] = status
         st.session_state["diagnostic_interpretation"] = interpretation
         st.session_state["diagnostic_observations"] = observations
-        st.session_state["diagnostic_source"] = source
 
         st.markdown("### Expansion Readiness Score")
 
@@ -1202,15 +1288,6 @@ with tab2:
             st.markdown(
                 f"""
                 <div class="success-box">
-                    <b>{status}:</b> {interpretation}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        elif score >= 50:
-            st.markdown(
-                f"""
-                <div class="warning-box">
                     <b>{status}:</b> {interpretation}
                 </div>
                 """,
@@ -1248,15 +1325,27 @@ with tab2:
             advisor_answer=advisor_answer
         )
 
-        st.download_button(
-            label="Download Advisory Report",
-            data=get_download_buffer(report_text),
-            file_name=f"market_x_growth_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain"
-        )
+        dl1, dl2 = st.columns([1, 1])
 
-        with st.expander("Technical response source"):
-            st.write(source)
+        with dl1:
+            st.download_button(
+                label="Download Advisory Report",
+                data=get_download_buffer(report_text),
+                file_name=f"market_x_growth_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime="text/plain"
+            )
+
+        with dl2:
+            st.markdown(
+                f"""
+                <div style="padding-top: 6px;">
+                    <a href="{MARKET_X_WEBSITE}" target="_blank">
+                        Discuss this report with a Market X consultant →
+                    </a>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1342,10 +1431,13 @@ with tab3:
     st.dataframe(pd.DataFrame(metric_rows), use_container_width=True, hide_index=True)
 
     st.markdown(
-        """
+        f"""
         <div class="insight-box">
-            <b>What makes this more premium:</b> Large FMCG clients do not only want advice.
-            They want decision support, governance metrics, and execution visibility. This app now positions Market X as an execution-focused consulting partner.
+            <b>Why clients choose Market X:</b> Large FMCG and food businesses don't just need advice —
+            they need decision support, governance metrics, and execution visibility. This is what
+            positions Market X as an execution-focused consulting partner, not just an advisory shop.
+            <br><br>
+            <a href="{MARKET_X_WEBSITE}" target="_blank">Learn more about our frameworks →</a>
         </div>
         """,
         unsafe_allow_html=True
@@ -1477,7 +1569,9 @@ with tab4:
                     f"""
                     <div class="success-box">
                         <b>Initial readiness view:</b> {status} with a score of {score}/100.
-                        Market X can use this information to prepare a more focused discussion.
+                        A Market X consultant will use this information to prepare a focused discussion.
+                        You can also reach us directly at
+                        <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in</a>.
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -1491,11 +1585,13 @@ with tab4:
 # =========================================================
 st.markdown("---")
 st.markdown(
-    """
+    f"""
     <div class="footer">
+    <b>MARKET X</b> — Strategy, Brand & Transformation Consulting | <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in</a>
+    <br>
     Disclaimer: Market X Growth Intelligence Advisor provides high-level business guidance.
     Final recommendations should be validated through primary market research, commercial due diligence,
-    field assessment, and client-specific consulting engagement.
+    field assessment, and a client-specific consulting engagement.
     </div>
     """,
     unsafe_allow_html=True
