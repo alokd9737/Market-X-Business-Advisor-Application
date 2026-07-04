@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import re
 import json
+import base64
 import requests
 from datetime import datetime
 from io import BytesIO
@@ -15,13 +16,30 @@ from sklearn.metrics.pairwise import cosine_similarity
 # =========================================================
 st.set_page_config(
     page_title="Market X Growth Intelligence Advisor",
-    page_icon="💼",
+    page_icon="assets/market_x_logo.webp" if os.path.exists("assets/market_x_logo.webp") else "💼",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-MARKET_X_LOGO = "https://img1.wsimg.com/isteam/ip/73381f5a-c5c8-48ff-85ba-7bcd5aec9928/Untitled%20design%20(8).png"
 MARKET_X_WEBSITE = "https://market-x.co.in/"
+LOGO_PATH = "assets/market_x_logo.webp"
+
+
+@st.cache_data
+def get_logo_data_uri():
+    try:
+        with open(LOGO_PATH, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+        return f"data:image/webp;base64,{encoded}"
+    except Exception:
+        return None
+
+
+LOGO_URI = get_logo_data_uri()
+LOGO_IMG_TAG = (
+    f'<img src="{LOGO_URI}" class="mx-logo" />'
+    if LOGO_URI else '<div class="mx-logo-fallback">X</div>'
+)
 
 
 # =========================================================
@@ -43,206 +61,527 @@ for folder in ["data", "leads", "reports"]:
 
 
 # =========================================================
-# CUSTOM CSS - BIG 4 STYLE
+# DESIGN SYSTEM — TOKENS + GLOBAL STYLE
 # =========================================================
 st.markdown(
     """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+    :root {
+        --navy-950: #060B16;
+        --navy-900: #0B1220;
+        --navy-800: #101C33;
+        --teal-600: #0D7B70;
+        --teal-500: #12897D;
+        --teal-400: #2FB3A3;
+        --amber-500: #E8A33D;
+        --amber-400: #F2B65B;
+        --canvas: #F4F5FA;
+        --card: #FFFFFF;
+        --border: #E4E7EF;
+        --ink-900: #0E1526;
+        --ink-600: #4C5566;
+        --ink-400: #8A93A6;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --radius-sm: 10px;
+        --shadow-card: 0px 10px 30px rgba(14, 21, 38, 0.06);
+        --shadow-hero: 0px 24px 60px rgba(6, 11, 22, 0.35);
+    }
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, sans-serif;
+    }
+
     .stApp {
-        background: #f5f7fb;
+        background: var(--canvas);
     }
 
     .block-container {
-        padding-top: 1.2rem;
-        padding-bottom: 2rem;
+        padding-top: 1.6rem;
+        padding-bottom: 3rem;
+        max-width: 1180px;
     }
 
-    /* Top brand bar */
-    .brand-bar {
+    h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        font-family: 'Fraunces', serif;
+        color: var(--ink-900);
+        font-weight: 600;
+    }
+
+    p, span, label, div {
+        color: var(--ink-900);
+    }
+
+    /* ---------- Logo ---------- */
+    .mx-logo {
+        height: 42px;
+        width: 42px;
+        border-radius: 10px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .mx-logo-fallback {
+        height: 42px;
+        width: 42px;
+        border-radius: 10px;
+        background: var(--navy-900);
+        color: var(--teal-400);
+        font-family: 'Fraunces', serif;
+        font-weight: 700;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* ---------- Top brand bar ---------- */
+    .mx-topbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 12px 22px;
-        margin-bottom: 18px;
-        box-shadow: 0px 6px 18px rgba(15,23,42,0.06);
+        padding: 6px 4px 22px 4px;
+        margin-bottom: 4px;
     }
 
-    .brand-left {
+    .mx-topbar-left {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 13px;
     }
 
-    .brand-name {
-        font-size: 20px;
-        font-weight: 850;
-        color: #0f172a;
-        letter-spacing: 0.3px;
-    }
-
-    .brand-tag {
-        font-size: 12px;
-        color: #64748b;
+    .mx-wordmark {
+        font-family: 'Fraunces', serif;
+        font-size: 19px;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
+        color: var(--ink-900);
+        letter-spacing: 0.2px;
+        line-height: 1.1;
     }
 
-    .brand-link a {
+    .mx-wordmark-sub {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10.5px;
+        color: var(--ink-400);
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        margin-top: 2px;
+    }
+
+    .mx-topbar-link a {
         text-decoration: none;
-        color: #0f766e;
-        font-weight: 700;
-        font-size: 14px;
-        border: 1.5px solid #0f766e;
-        padding: 8px 16px;
+        color: var(--ink-900);
+        font-weight: 600;
+        font-size: 13.5px;
+        padding: 9px 18px;
+        border-radius: 999px;
+        border: 1.5px solid var(--navy-900);
+        transition: all 0.15s ease;
+    }
+
+    .mx-topbar-link a:hover {
+        background: var(--navy-900);
+        color: white;
+    }
+
+    /* ---------- Hero ---------- */
+    .mx-hero {
+        background: linear-gradient(148deg, var(--navy-950) 0%, var(--navy-800) 55%, #0C3A38 130%);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-hero);
+        padding: 0;
+        margin-bottom: 26px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .mx-hero-accent {
+        height: 4px;
+        width: 100%;
+        background: linear-gradient(90deg, var(--teal-400), var(--amber-400), var(--teal-400));
+    }
+
+    .mx-hero-grid {
+        display: grid;
+        grid-template-columns: 1.55fr 1fr;
+        gap: 0;
+    }
+
+    .mx-hero-left {
+        padding: 44px 42px 44px 46px;
+    }
+
+    .mx-hero-kicker {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11.5px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--amber-400);
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    .mx-hero-title {
+        font-family: 'Fraunces', serif;
+        font-size: 38px;
+        line-height: 1.12;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 16px;
+        max-width: 560px;
+    }
+
+    .mx-hero-subtitle {
+        font-size: 15.5px;
+        color: #C7D2E3;
+        line-height: 1.65;
+        max-width: 520px;
+        font-weight: 400;
+    }
+
+    .mx-hero-cta {
+        margin-top: 26px;
+        display: flex;
+        gap: 12px;
+    }
+
+    .mx-hero-cta a {
+        text-decoration: none;
+        font-size: 13.5px;
+        font-weight: 600;
+        padding: 11px 20px;
         border-radius: 999px;
     }
 
-    .brand-link a:hover {
-        background: #0f766e;
-        color: white;
+    .mx-cta-primary {
+        background: var(--teal-400);
+        color: var(--navy-950) !important;
     }
 
-    .hero-box {
-        background: linear-gradient(135deg, #07111f 0%, #102a56 48%, #0f766e 100%);
-        padding: 38px;
-        border-radius: 22px;
-        color: white;
-        margin-bottom: 26px;
-        box-shadow: 0px 18px 45px rgba(15, 23, 42, 0.25);
+    .mx-cta-secondary {
+        border: 1.5px solid rgba(255,255,255,0.35);
+        color: white !important;
     }
 
-    .hero-kicker {
-        font-size: 13px;
-        letter-spacing: 1.8px;
+    .mx-hero-right {
+        background: rgba(255,255,255,0.05);
+        border-left: 1px solid rgba(255,255,255,0.09);
+        padding: 40px 36px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0;
+    }
+
+    .mx-diff-item {
+        padding: 14px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.09);
+    }
+
+    .mx-diff-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .mx-diff-item:first-child {
+        padding-top: 0;
+    }
+
+    .mx-diff-label {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 1px;
         text-transform: uppercase;
-        color: #a7f3d0;
-        font-weight: 700;
-        margin-bottom: 10px;
+        color: var(--teal-400);
+        margin-bottom: 5px;
     }
 
-    .hero-title {
-        font-size: 42px;
-        line-height: 1.08;
-        font-weight: 850;
-        margin-bottom: 12px;
+    .mx-diff-value {
+        font-family: 'Fraunces', serif;
+        font-size: 17px;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 4px;
     }
 
-    .hero-subtitle {
-        font-size: 18px;
-        color: #dbeafe;
-        line-height: 1.6;
-        max-width: 980px;
-    }
-
-    .glass-card {
-        background: rgba(255,255,255,0.96);
-        padding: 22px;
-        border-radius: 18px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0px 8px 26px rgba(15,23,42,0.08);
-        margin-bottom: 18px;
-    }
-
-    .metric-card {
-        background: white;
-        padding: 20px;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0px 6px 18px rgba(15,23,42,0.07);
-        min-height: 138px;
-    }
-
-    .metric-title {
-        color: #64748b;
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        margin-bottom: 8px;
-    }
-
-    .metric-value {
-        color: #0f172a;
-        font-size: 25px;
-        font-weight: 850;
-        margin-bottom: 6px;
-    }
-
-    .metric-copy {
-        color: #475569;
-        font-size: 14px;
-        line-height: 1.45;
-    }
-
-    .insight-box {
-        background: #ecfeff;
-        border-left: 5px solid #0891b2;
-        padding: 16px 18px;
-        border-radius: 12px;
-        color: #164e63;
-        margin: 15px 0;
-    }
-
-    .warning-box {
-        background: #fff7ed;
-        border-left: 5px solid #f97316;
-        padding: 16px 18px;
-        border-radius: 12px;
-        color: #7c2d12;
-        margin: 15px 0;
-    }
-
-    .success-box {
-        background: #ecfdf5;
-        border-left: 5px solid #10b981;
-        padding: 16px 18px;
-        border-radius: 12px;
-        color: #064e3b;
-        margin: 15px 0;
-    }
-
-    .small-text {
-        font-size: 13px;
-        color: #64748b;
+    .mx-diff-copy {
+        font-size: 12.5px;
+        color: #A9B6CC;
         line-height: 1.5;
     }
 
+    /* ---------- Section kicker ---------- */
     .section-kicker {
-        font-size: 12px;
-        color: #0f766e;
-        font-weight: 800;
-        letter-spacing: 1.2px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        color: var(--teal-600);
+        font-weight: 600;
+        letter-spacing: 1.4px;
         text-transform: uppercase;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
     }
 
-    div[data-testid="stMetricValue"] {
-        font-size: 25px;
-        font-weight: 850;
+    /* ---------- Cards ---------- */
+    .glass-card {
+        background: var(--card);
+        padding: 30px 32px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-card);
+        margin-bottom: 20px;
+    }
+
+    .insight-box {
+        background: #EEFAF8;
+        border-left: 4px solid var(--teal-500);
+        padding: 16px 20px;
+        border-radius: var(--radius-sm);
+        color: #0C3A38;
+        margin: 18px 0 0 0;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .warning-box {
+        background: #FEF6E9;
+        border-left: 4px solid var(--amber-500);
+        padding: 16px 20px;
+        border-radius: var(--radius-sm);
+        color: #6B4A10;
+        margin: 18px 0;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .success-box {
+        background: #EEFAF8;
+        border-left: 4px solid var(--teal-500);
+        padding: 16px 20px;
+        border-radius: var(--radius-sm);
+        color: #0C3A38;
+        margin: 18px 0;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .small-text {
+        font-size: 12.5px;
+        color: var(--ink-400);
+        line-height: 1.6;
+    }
+
+    .small-text a {
+        color: var(--teal-500);
+        font-weight: 600;
+    }
+
+    /* ---------- Streamlit widget overrides ---------- */
+    div[data-testid="stVerticalBlock"] { gap: 0.6rem; }
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        border-bottom: 1.5px solid var(--border);
+        background: transparent;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--ink-400);
+        padding: 10px 6px;
+        margin-right: 22px;
+        background: transparent;
+    }
+
+    .stTabs [aria-selected="true"] {
+        color: var(--navy-900) !important;
+        border-bottom: 2.5px solid var(--teal-500) !important;
+    }
+
+    div.stButton > button {
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 0.55rem 1.3rem;
+        border: none;
+        transition: all 0.15s ease;
+    }
+
+    div.stButton > button[kind="primary"] {
+        background: var(--navy-900);
+        color: white;
+    }
+
+    div.stButton > button[kind="primary"]:hover {
+        background: var(--teal-600);
+        color: white;
+    }
+
+    div.stButton > button[kind="secondary"] {
+        background: white;
+        color: var(--ink-900);
+        border: 1.5px solid var(--border);
+    }
+
+    div.stButton > button[kind="secondary"]:hover {
+        border-color: var(--navy-900);
+    }
+
+    div[data-testid="stDownloadButton"] > button {
+        border-radius: 999px;
+        font-weight: 600;
+        background: var(--teal-500);
+        color: white;
+        border: none;
+        padding: 0.55rem 1.3rem;
+    }
+
+    div[data-testid="stDownloadButton"] > button:hover {
+        background: var(--teal-600);
+    }
+
+    .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
+        border-radius: var(--radius-sm) !important;
+        border: 1.5px solid var(--border) !important;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .stTextInput input:focus, .stTextArea textarea:focus {
+        border-color: var(--teal-500) !important;
+        box-shadow: 0 0 0 1px var(--teal-500) !important;
+    }
+
+    .stProgress > div > div > div {
+        background: linear-gradient(90deg, var(--teal-500), var(--teal-400));
     }
 
     div[data-testid="stForm"] {
-        border: 1px solid #e2e8f0;
-        padding: 20px;
-        border-radius: 18px;
+        border: 1px solid var(--border);
+        padding: 28px 30px;
+        border-radius: var(--radius-lg);
         background: white;
-        box-shadow: 0px 8px 26px rgba(15,23,42,0.08);
+        box-shadow: var(--shadow-card);
     }
 
-    .footer {
-        color: #64748b;
+    div[data-testid="stMetricValue"] {
+        font-family: 'Fraunces', serif;
+        font-size: 26px;
+        font-weight: 600;
+        color: var(--navy-900);
+    }
+
+    div[data-testid="stMetricLabel"] {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10.5px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--ink-400);
+    }
+
+    .stDataFrame {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+
+    hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 22px 0;
+    }
+
+    /* ---------- Sidebar ---------- */
+    section[data-testid="stSidebar"] {
+        background: var(--navy-950);
+        border-right: none;
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: #DCE3F0;
+    }
+
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+        color: white;
+        font-family: 'Fraunces', serif;
+    }
+
+    .mx-sidebar-logo {
+        display: flex;
+        justify-content: center;
+        padding: 6px 0 18px 0;
+    }
+
+    .mx-sidebar-kicker {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10.5px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        color: var(--teal-400);
+        font-weight: 600;
+        margin: 6px 0 10px 0;
+    }
+
+    section[data-testid="stSidebar"] .stRadio label {
+        font-size: 13.5px;
+    }
+
+    section[data-testid="stSidebar"] hr {
+        border-top: 1px solid rgba(255,255,255,0.12);
+        margin: 18px 0;
+    }
+
+    .mx-sidebar-list {
         font-size: 13px;
-        padding-top: 12px;
+        line-height: 2;
+        color: #B9C3D6;
     }
 
-    .footer a {
-        color: #0f766e;
+    .mx-sidebar-cta {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: #C7D2E3;
+    }
+
+    .mx-sidebar-cta a {
+        color: var(--teal-400);
         font-weight: 700;
         text-decoration: none;
+    }
+
+    /* ---------- Footer ---------- */
+    .mx-footer {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 22px 4px 6px 4px;
+    }
+
+    .mx-footer-text {
+        font-size: 12.5px;
+        color: var(--ink-400);
+        line-height: 1.6;
+    }
+
+    .mx-footer-text a {
+        color: var(--teal-600);
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .mx-footer-brand {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        color: var(--ink-900);
+        font-size: 13.5px;
     }
     </style>
     """,
@@ -898,20 +1237,20 @@ def save_lead(data):
 
 
 # =========================================================
-# BRAND BAR
+# TOP BRAND BAR
 # =========================================================
 st.markdown(
     f"""
-    <div class="brand-bar">
-        <div class="brand-left">
-            <img src="{MARKET_X_LOGO}" style="height:44px; border-radius:8px;" />
+    <div class="mx-topbar">
+        <div class="mx-topbar-left">
+            {LOGO_IMG_TAG}
             <div>
-                <div class="brand-name">MARKET X</div>
-                <div class="brand-tag">Strategy &nbsp;•&nbsp; Brand &nbsp;•&nbsp; Transformation</div>
+                <div class="mx-wordmark">Market X</div>
+                <div class="mx-wordmark-sub">Growth Intelligence</div>
             </div>
         </div>
-        <div class="brand-link">
-            <a href="{MARKET_X_WEBSITE}" target="_blank">Visit market-x.co.in →</a>
+        <div class="mx-topbar-link">
+            <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in ↗</a>
         </div>
     </div>
     """,
@@ -920,16 +1259,42 @@ st.markdown(
 
 
 # =========================================================
-# HEADER
+# HERO — headline + condensed differentiators, single unit
 # =========================================================
 st.markdown(
-    """
-    <div class="hero-box">
-        <div class="hero-kicker">Market X Growth Intelligence</div>
-        <div class="hero-title">Boardroom-grade business advisory for market expansion.</div>
-        <div class="hero-subtitle">
-            A consulting-style AI advisor for FMCG, dairy, agriculture, distribution, route-to-market,
-            brand development, government projects, and execution-led growth in Indian markets.
+    f"""
+    <div class="mx-hero">
+        <div class="mx-hero-accent"></div>
+        <div class="mx-hero-grid">
+            <div class="mx-hero-left">
+                <div class="mx-hero-kicker">Consulting-Grade AI Advisory</div>
+                <div class="mx-hero-title">Boardroom-grade advisory for market expansion.</div>
+                <div class="mx-hero-subtitle">
+                    An execution-focused advisor for FMCG, dairy, agriculture, distribution, route-to-market,
+                    brand development, and government projects across Indian markets — built by Market X.
+                </div>
+                <div class="mx-hero-cta">
+                    <a href="{MARKET_X_WEBSITE}" target="_blank" class="mx-cta-primary">Visit Market X →</a>
+                    <a href="#" class="mx-cta-secondary" onclick="return false;">Ask below ↓</a>
+                </div>
+            </div>
+            <div class="mx-hero-right">
+                <div class="mx-diff-item">
+                    <div class="mx-diff-label">Diagnostic Depth</div>
+                    <div class="mx-diff-value">CXO Lens</div>
+                    <div class="mx-diff-copy">Frames every question around growth, channel economics, and execution risk.</div>
+                </div>
+                <div class="mx-diff-item">
+                    <div class="mx-diff-label">Core Strength</div>
+                    <div class="mx-diff-value">Route-to-Market</div>
+                    <div class="mx-diff-copy">Built for distribution expansion, retail activation, and sales transformation.</div>
+                </div>
+                <div class="mx-diff-item">
+                    <div class="mx-diff-label">Output Style</div>
+                    <div class="mx-diff-value">Board Note</div>
+                    <div class="mx-diff-copy">Roadmap, KPIs, risks, and mitigation — ready to bring into a leadership review.</div>
+                </div>
+            </div>
         </div>
     </div>
     """,
@@ -938,77 +1303,13 @@ st.markdown(
 
 
 # =========================================================
-# VALUE CARDS
-# =========================================================
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Diagnostic Depth</div>
-            <div class="metric-value">CXO Lens</div>
-            <div class="metric-copy">Frames questions around growth, channel economics, execution risk, and market readiness.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with c2:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Core Strength</div>
-            <div class="metric-value">RTM</div>
-            <div class="metric-copy">Built for route-to-market, distribution expansion, retail activation, and sales transformation.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with c3:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Output Style</div>
-            <div class="metric-value">Board Note</div>
-            <div class="metric-copy">Generates roadmap, KPIs, risks, mitigation, and advisory workstreams.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with c4:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Engagement</div>
-            <div class="metric-value">Lead Ready</div>
-            <div class="metric-copy">Captures qualified consultation requests with business context and readiness score.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-st.markdown("---")
-
-
-# =========================================================
-# SIDEBAR (client-facing — no internal engineering details)
+# SIDEBAR
 # =========================================================
 with st.sidebar:
-    st.markdown(
-        f"""
-        <div style="text-align:center; margin-bottom: 10px;">
-            <img src="{MARKET_X_LOGO}" style="height:56px; border-radius:8px;" />
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown(f'<div class="mx-sidebar-logo">{LOGO_IMG_TAG}</div>', unsafe_allow_html=True)
 
-    st.header("Advisor Console")
+    st.markdown('<div class="mx-sidebar-kicker">Advisor Console</div>', unsafe_allow_html=True)
 
-    st.markdown("### Advisory Modules")
     advisory_mode = st.radio(
         "Choose advisory focus",
         [
@@ -1020,26 +1321,35 @@ with st.sidebar:
             "Agriculture / Plantation",
             "Government Project Advisory",
             "General Business Growth"
-        ]
+        ],
+        label_visibility="collapsed"
     )
 
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
 
-    st.markdown("### What This Advisor Delivers")
-    st.write("- Expansion readiness scoring")
-    st.write("- Consulting-style diagnosis")
-    st.write("- 30-60-90 day roadmap")
-    st.write("- KPI dashboard")
-    st.write("- Risk and mitigation matrix")
-    st.write("- Downloadable advisory note")
+    st.markdown('<div class="mx-sidebar-kicker">This Advisor Delivers</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="mx-sidebar-list">
+        Expansion readiness scoring<br>
+        Consulting-style diagnosis<br>
+        30-60-90 day roadmap<br>
+        KPI dashboard<br>
+        Risk and mitigation matrix<br>
+        Downloadable advisory note
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
+
     st.markdown(
         f"""
-        <div class="small-text">
-        Want a deeper, human-led engagement? Visit
-        <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in</a>
-        or use the Consultation Request tab.
+        <div class="mx-sidebar-cta">
+            Want a deeper, human-led engagement?<br>
+            Visit <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in</a>
+            or use the Consultation Request tab.
         </div>
         """,
         unsafe_allow_html=True
@@ -1081,7 +1391,7 @@ with tab1:
     user_query = st.text_area(
         "Describe your business challenge",
         value=example_questions.get(advisory_mode, ""),
-        height=180
+        height=170
     )
 
     col_a, col_b, col_c = st.columns([1, 1, 2])
@@ -1090,7 +1400,7 @@ with tab1:
         ask_button = st.button("Generate Advisory Note", type="primary")
 
     with col_b:
-        clear_button = st.button("Clear Question")
+        clear_button = st.button("Clear Question", type="secondary")
 
     if clear_button:
         st.rerun()
@@ -1116,7 +1426,7 @@ with tab1:
         st.markdown(
             """
             <div class="success-box">
-                <b>Boardroom-ready next step:</b> Use the Expansion Diagnostic tab to convert this advisory into a more qualified market-entry report,
+                <b>Boardroom-ready next step:</b> Use the Expansion Diagnostic tab to convert this advisory into a qualified market-entry report,
                 or submit a Consultation Request to work directly with the Market X team.
             </div>
             """,
@@ -1220,7 +1530,7 @@ with tab2:
     diag_challenge = st.text_area(
         "Business Challenge",
         placeholder="Example: We want to appoint distributors in Bihar but do not know which districts to prioritize.",
-        height=120,
+        height=110,
         key="diag_challenge"
     )
 
@@ -1284,24 +1594,15 @@ with tab2:
 
         st.progress(score / 100)
 
-        if score >= 75:
-            st.markdown(
-                f"""
-                <div class="success-box">
-                    <b>{status}:</b> {interpretation}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                f"""
-                <div class="warning-box">
-                    <b>{status}:</b> {interpretation}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        box_class = "success-box" if score >= 75 else "warning-box"
+        st.markdown(
+            f"""
+            <div class="{box_class}">
+                <b>{status}:</b> {interpretation}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         if observations:
             st.markdown("### Diagnostic Observations")
@@ -1325,7 +1626,7 @@ with tab2:
             advisor_answer=advisor_answer
         )
 
-        dl1, dl2 = st.columns([1, 1])
+        dl1, dl2 = st.columns([1, 1.4])
 
         with dl1:
             st.download_button(
@@ -1338,10 +1639,8 @@ with tab2:
         with dl2:
             st.markdown(
                 f"""
-                <div style="padding-top: 6px;">
-                    <a href="{MARKET_X_WEBSITE}" target="_blank">
-                        Discuss this report with a Market X consultant →
-                    </a>
+                <div style="padding-top: 10px;" class="small-text">
+                    <a href="{MARKET_X_WEBSITE}" target="_blank">Discuss this report with a Market X consultant →</a>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -1515,7 +1814,7 @@ with tab4:
         challenge = st.text_area(
             "Business Challenge *",
             placeholder="Briefly describe your business challenge",
-            height=120
+            height=110
         )
 
         urgency = st.selectbox(
@@ -1529,7 +1828,7 @@ with tab4:
             ]
         )
 
-        submitted = st.form_submit_button("Submit Consultation Request")
+        submitted = st.form_submit_button("Submit Consultation Request", type="primary")
 
         if submitted:
             if name.strip() == "" or phone.strip() == "" or challenge.strip() == "":
@@ -1583,15 +1882,19 @@ with tab4:
 # =========================================================
 # FOOTER
 # =========================================================
-st.markdown("---")
 st.markdown(
     f"""
-    <div class="footer">
-    <b>MARKET X</b> — Strategy, Brand & Transformation Consulting | <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in</a>
-    <br>
-    Disclaimer: Market X Growth Intelligence Advisor provides high-level business guidance.
-    Final recommendations should be validated through primary market research, commercial due diligence,
-    field assessment, and a client-specific consulting engagement.
+    <hr>
+    <div class="mx-footer">
+        {LOGO_IMG_TAG}
+        <div>
+            <div class="mx-footer-brand">Market X — Strategy, Brand &amp; Transformation Consulting</div>
+            <div class="mx-footer-text">
+                <a href="{MARKET_X_WEBSITE}" target="_blank">market-x.co.in</a> ·
+                This advisor provides high-level guidance. Recommendations should be validated through
+                primary market research, distributor due diligence, and a client-specific engagement.
+            </div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True
