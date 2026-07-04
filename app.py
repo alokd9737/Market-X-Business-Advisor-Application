@@ -1,3 +1,4 @@
+# app.py
 import streamlit as st
 import pandas as pd
 import os
@@ -8,7 +9,7 @@ from datetime import datetime
 from io import BytesIO
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
+from pathlib import Path
 
 # =========================================================
 # PAGE CONFIG
@@ -20,6 +21,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Ensure assets folder exists
+Path("assets").mkdir(exist_ok=True)
 
 # =========================================================
 # SAFE SECRET READER
@@ -30,170 +33,106 @@ def get_secret(key, default=""):
     except Exception:
         return os.environ.get(key, default)
 
-
 # =========================================================
 # CREATE REQUIRED FOLDERS
 # =========================================================
-for folder in ["data", "leads", "reports"]:
+for folder in ["data", "leads", "reports", "assets"]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-
 # =========================================================
-# CUSTOM CSS - BIG 4 STYLE
+# CUSTOM CSS - BIG 4 STYLE (updated)
 # =========================================================
 st.markdown(
     """
     <style>
-    .stApp {
-        background: #f5f7fb;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+    html, body, [class*="css"]  {
+        font-family: 'Inter', sans-serif;
     }
 
-    .block-container {
-        padding-top: 1.4rem;
-        padding-bottom: 2rem;
+    .mx-header {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        background: linear-gradient(90deg,#07111f 0%, #0f3b6b 60%);
+        padding:18px 22px;
+        border-radius:12px;
+        color: #fff;
+        box-shadow: 0 10px 30px rgba(2,6,23,0.35);
+        margin-bottom:18px;
+    }
+    .mx-logo {
+        display:flex;
+        align-items:center;
+        gap:14px;
+    }
+    .mx-title {
+        font-weight:800;
+        font-size:22px;
+        margin:0;
+        line-height:1;
+    }
+    .mx-sub {
+        font-size:13px;
+        color: #dbeafe;
+        margin-top:4px;
     }
 
-    .hero-box {
-        background: linear-gradient(135deg, #07111f 0%, #102a56 48%, #0f766e 100%);
-        padding: 38px;
-        border-radius: 22px;
+    .mx-nav {
+        display:flex;
+        gap:10px;
+        align-items:center;
+    }
+    .mx-pill {
+        background: rgba(255,255,255,0.06);
+        padding:8px 12px;
+        border-radius:8px;
+        color:#e6f0ff;
+        font-weight:600;
+        font-size:13px;
+    }
+
+    .mx-card {
+        background: #fff;
+        border-radius:12px;
+        padding:18px;
+        box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+        border: 1px solid #e6eef8;
+    }
+
+    .mx-metric-title { color:#64748b; font-size:12px; font-weight:700; text-transform:uppercase; }
+    .mx-metric-value { font-size:26px; font-weight:800; color:#0f172a; }
+
+    .glass-card {
+        background: linear-gradient(135deg, rgba(7,17,31,0.95) 0%, rgba(16,42,86,0.95) 48%, rgba(15,118,110,0.95) 100%);
+        padding: 28px;
+        border-radius: 18px;
         color: white;
         margin-bottom: 26px;
         box-shadow: 0px 18px 45px rgba(15, 23, 42, 0.25);
     }
 
-    .hero-kicker {
-        font-size: 13px;
-        letter-spacing: 1.8px;
-        text-transform: uppercase;
-        color: #a7f3d0;
-        font-weight: 700;
-        margin-bottom: 10px;
-    }
-
-    .hero-title {
-        font-size: 42px;
-        line-height: 1.08;
-        font-weight: 850;
-        margin-bottom: 12px;
-    }
-
-    .hero-subtitle {
-        font-size: 18px;
-        color: #dbeafe;
-        line-height: 1.6;
-        max-width: 980px;
-    }
-
-    .glass-card {
-        background: rgba(255,255,255,0.96);
-        padding: 22px;
-        border-radius: 18px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0px 8px 26px rgba(15,23,42,0.08);
-        margin-bottom: 18px;
-    }
-
-    .metric-card {
-        background: white;
-        padding: 20px;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0px 6px 18px rgba(15,23,42,0.07);
-        min-height: 138px;
-    }
-
-    .metric-title {
-        color: #64748b;
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        margin-bottom: 8px;
-    }
-
-    .metric-value {
-        color: #0f172a;
-        font-size: 25px;
-        font-weight: 850;
-        margin-bottom: 6px;
-    }
-
-    .metric-copy {
-        color: #475569;
-        font-size: 14px;
-        line-height: 1.45;
-    }
-
-    .insight-box {
-        background: #ecfeff;
-        border-left: 5px solid #0891b2;
-        padding: 16px 18px;
-        border-radius: 12px;
-        color: #164e63;
-        margin: 15px 0;
-    }
-
-    .warning-box {
-        background: #fff7ed;
-        border-left: 5px solid #f97316;
-        padding: 16px 18px;
-        border-radius: 12px;
-        color: #7c2d12;
-        margin: 15px 0;
-    }
-
-    .success-box {
-        background: #ecfdf5;
-        border-left: 5px solid #10b981;
-        padding: 16px 18px;
-        border-radius: 12px;
-        color: #064e3b;
-        margin: 15px 0;
-    }
-
     .small-text {
-        font-size: 13px;
-        color: #64748b;
-        line-height: 1.5;
+        font-size:13px;
+        color:#64748b;
     }
 
-    .section-kicker {
-        font-size: 12px;
-        color: #0f766e;
-        font-weight: 800;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        margin-bottom: 6px;
-    }
+    .mx-footer { color:#64748b; font-size:13px; padding-top:12px; }
 
-    div[data-testid="stMetricValue"] {
-        font-size: 25px;
-        font-weight: 850;
-    }
-
-    div[data-testid="stForm"] {
-        border: 1px solid #e2e8f0;
-        padding: 20px;
-        border-radius: 18px;
-        background: white;
-        box-shadow: 0px 8px 26px rgba(15,23,42,0.08);
-    }
-
-    .footer {
-        color: #64748b;
-        font-size: 13px;
-        padding-top: 12px;
+    /* Responsive tweaks */
+    @media (max-width: 800px) {
+        .mx-header { flex-direction:column; gap:12px; align-items:flex-start; }
+        .mx-nav { width:100%; justify-content:flex-start; flex-wrap:wrap; }
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-
 # =========================================================
-# DEFAULT KNOWLEDGE BASE
+# DEFAULT KNOWLEDGE BASE (unchanged)
 # =========================================================
 default_knowledge = {
     "company_profile.txt": """
@@ -205,7 +144,6 @@ Market X has experience across Indian states including Bihar, Jharkhand, Uttar P
 
 The firm supports clients through strategic advisory, market intelligence, execution planning, sales transformation, and business growth consulting.
 """,
-
     "services.txt": """
 Market X provides consulting services across FMCG, dairy, agriculture, plantation, government advisory, brand development, and business expansion.
 
@@ -231,7 +169,6 @@ Core services include:
 
 Market X helps businesses identify market opportunities, design execution roadmaps, and improve sales performance.
 """,
-
     "fmcg_strategy.txt": """
 FMCG growth requires a structured understanding of market demand, retail universe, distributor capability, pricing, trade schemes, sales force productivity, and competitor presence.
 
@@ -256,7 +193,6 @@ Many FMCG companies fail in new markets because they appoint distributors withou
 
 Market X can support FMCG clients through route-to-market strategy, distribution expansion, market research, retailer activation planning, and performance tracking.
 """,
-
     "dairy_strategy.txt": """
 Dairy market development depends on cold chain, local consumption patterns, distributor reach, product freshness, retailer trust, pricing, and daily delivery discipline.
 
@@ -274,7 +210,6 @@ A dairy expansion strategy should evaluate:
 
 Market X can support dairy companies through market assessment, distributor identification, sales channel design, institutional sales mapping, and rural or urban expansion planning.
 """,
-
     "agriculture_strategy.txt": """
 Agriculture and plantation projects require field-level understanding of farmers, land availability, crop suitability, procurement models, government schemes, processing opportunities, and value chain economics.
 
@@ -292,7 +227,6 @@ A structured agriculture consulting approach includes:
 
 Market X can support companies in palm plantation, cocoa plantation, agriculture value chain development, farmer engagement, and state-level project execution.
 """,
-
     "government_projects.txt": """
 Government project consulting requires understanding policy objectives, stakeholder management, implementation planning, field execution, monitoring frameworks, and impact reporting.
 
@@ -310,7 +244,6 @@ Important elements include:
 
 Market X can support government and institutional clients through project planning, implementation support, market linkage, field research, and monitoring frameworks.
 """,
-
     "brand_development.txt": """
 Brand development requires clear positioning, customer understanding, competitor benchmarking, product differentiation, communication strategy, pricing, packaging, and channel alignment.
 
@@ -328,7 +261,6 @@ A brand development roadmap includes:
 
 Market X can support brands through market research, positioning strategy, launch planning, consumer insights, and business development support.
 """,
-
     "big4_delivery_style.txt": """
 A consulting-grade advisory response should include executive summary, current situation diagnosis, market opportunity, operating model implications, risks, recommended roadmap, KPIs, and decision questions.
 
@@ -351,7 +283,6 @@ Important FMCG KPIs include numeric distribution, weighted distribution, seconda
 """
 }
 
-
 def create_default_knowledge_files():
     for filename, content in default_knowledge.items():
         file_path = os.path.join("data", filename)
@@ -359,9 +290,7 @@ def create_default_knowledge_files():
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(content.strip())
 
-
 create_default_knowledge_files()
-
 
 # =========================================================
 # LOAD KNOWLEDGE BASE
@@ -379,12 +308,10 @@ def load_knowledge_base():
 
     return documents, file_names
 
-
 documents, file_names = load_knowledge_base()
 
-
 # =========================================================
-# BUSINESS GUARDRAILS
+# BUSINESS GUARDRAILS (unchanged)
 # =========================================================
 allowed_keywords = [
     "business", "fmcg", "dairy", "agriculture", "sales", "distribution",
@@ -413,7 +340,6 @@ blocked_keywords = [
     "hack", "illegal", "celebrity", "astrology", "betting", "casino"
 ]
 
-
 def is_business_question(query):
     query_lower = query.lower()
 
@@ -436,7 +362,6 @@ def is_business_question(query):
         return True
 
     return False
-
 
 # =========================================================
 # RETRIEVE BEST CONTEXT FROM KNOWLEDGE BASE
@@ -468,7 +393,6 @@ def retrieve_context(query, docs, names, top_k=3):
     except Exception:
         return "", ""
 
-
 # =========================================================
 # IDENTIFY SERVICE AREA
 # =========================================================
@@ -494,7 +418,6 @@ def identify_service(query):
         return "Market research and competitor benchmarking"
 
     return "Business growth consulting"
-
 
 # =========================================================
 # READINESS SCORE ENGINE
@@ -560,7 +483,6 @@ def calculate_readiness_score(industry, target_market, turnover, current_distrib
 
     return score, status, interpretation, observations
 
-
 # =========================================================
 # REPORT GENERATOR
 # =========================================================
@@ -595,16 +517,14 @@ retailer mapping, competitor benchmarking, channel economics, and execution gove
 """
     return report
 
-
 def get_download_buffer(text):
     buffer = BytesIO()
     buffer.write(text.encode("utf-8"))
     buffer.seek(0)
     return buffer
 
-
 # =========================================================
-# GROQ LLM CALL
+# GROQ LLM CALL (unchanged)
 # =========================================================
 def call_groq_llm(user_query, context, service_area, diagnostic_data=None):
     try:
@@ -737,9 +657,8 @@ List the missing data required for deeper advisory.
     except Exception as e:
         return None, str(e)
 
-
 # =========================================================
-# FALLBACK RESPONSE
+# FALLBACK RESPONSE (unchanged)
 # =========================================================
 def fallback_response(context, service_area):
     return f"""
@@ -795,7 +714,6 @@ Market X can support through market research, route-to-market strategy, distribu
 - Investment budget and timeline
 """
 
-
 # =========================================================
 # MAIN RESPONSE GENERATOR
 # =========================================================
@@ -820,7 +738,6 @@ Please share a business challenge related to market expansion, sales growth, cha
     fallback = fallback_response(context, service_area)
     return fallback, f"Fallback used. Reason: {error}"
 
-
 # =========================================================
 # SAVE LEAD
 # =========================================================
@@ -837,666 +754,160 @@ def save_lead(data):
 
     final_data.to_csv(lead_file, index=False)
 
+# =========================================================
+# UI: Header with logo uploader and nav
+# =========================================================
+def render_header(default_logo_path="assets/market_x_logo.png"):
+    # Left column: logo uploader and preview
+    col1, col2 = st.columns([1, 3], gap="small")
+    with col1:
+        uploaded = st.file_uploader("Upload logo (optional)", type=["png","jpg","jpeg"], key="logo_uploader")
+        logo_path = default_logo_path
+        if uploaded:
+            logo_bytes = uploaded.read()
+            try:
+                with open(default_logo_path, "wb") as f:
+                    f.write(logo_bytes)
+                logo_path = default_logo_path
+            except Exception:
+                logo_path = None
+
+        if logo_path and os.path.exists(logo_path):
+            st.image(logo_path, width=120)
+        else:
+            st.markdown("<div style='font-weight:800;color:#07111f;font-size:20px'>MARKET X</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(
+            """
+            <div class="mx-header">
+                <div style="display:flex;flex-direction:column;">
+                    <div class="mx-title">Market X Growth Intelligence</div>
+                    <div class="mx-sub">Boardroom-grade business advisory for market expansion.</div>
+                </div>
+                <div class="mx-nav">
+                    <div class="mx-pill">Overview</div>
+                    <div class="mx-pill">Readiness</div>
+                    <div class="mx-pill">Reports</div>
+                    <div class="mx-pill">Leads</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+# Render header
+render_header()
 
 # =========================================================
-# HEADER
+# VALUE CARDS (improved layout)
 # =========================================================
+st.markdown("<div style='display:flex;gap:18px;margin-top:8px'>", unsafe_allow_html=True)
+m1, m2, m3, m4 = st.columns(4, gap="large")
+with m1:
+    st.markdown('<div class="mx-card"><div class="mx-metric-title">Readiness Score</div><div class="mx-metric-value">--</div><div class="small-text">Run assessment to compute</div></div>', unsafe_allow_html=True)
+with m2:
+    st.markdown('<div class="mx-card"><div class="mx-metric-title">Active Pilots</div><div class="mx-metric-value">--</div><div class="small-text">No active pilots</div></div>', unsafe_allow_html=True)
+with m3:
+    st.markdown('<div class="mx-card"><div class="mx-metric-title">Leads (30d)</div><div class="mx-metric-value">--</div><div class="small-text">Qualified</div></div>', unsafe_allow_html=True)
+with m4:
+    st.markdown('<div class="mx-card"><div class="mx-metric-title">Reports</div><div class="mx-metric-value">--</div><div class="small-text">Downloadable</div></div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Glass hero / quick advisory
 st.markdown(
     """
-    <div class="hero-box">
-        <div class="hero-kicker">Market X Growth Intelligence</div>
-        <div class="hero-title">Boardroom-grade business advisory for market expansion.</div>
-        <div class="hero-subtitle">
-            A consulting-style AI advisor for FMCG, dairy, agriculture, distribution, route-to-market,
-            brand development, government projects, and execution-led growth in Indian markets.
+    <div class="glass-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-weight:800;font-size:20px">Quick Advisory</div>
+                <div style="margin-top:6px;color:#dbeafe;max-width:900px">Start with a 90-day pilot: market mapping, distributor due diligence, SKU pilot, and weekly KPI governance. Use numeric distribution and secondary sales as primary success metrics.</div>
+            </div>
+            <div>
+                <!-- placeholder for CTA -->
+            </div>
         </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
+# =========================================================
+# SIDEBAR: Input form for assessment and report generation
+# =========================================================
+st.sidebar.header("Run Readiness Assessment")
+company = st.sidebar.text_input("Company name")
+contact_name = st.sidebar.text_input("Contact person")
+industry = st.sidebar.selectbox("Industry", ["FMCG", "Dairy", "Agriculture", "Food Processing", "Other"])
+target_market = st.sidebar.text_input("Target geography (state/district)")
+turnover = st.sidebar.selectbox("Approx annual turnover", ["Not Disclosed", "Below ₹1 Cr", "₹1 Cr - ₹10 Cr", "₹10 Cr - ₹50 Cr", "Above ₹50 Cr"])
+current_distribution = st.sidebar.selectbox("Current distribution strength", ["Not Disclosed", "Early-stage distribution", "Moderate distributor network", "Strong distributor network"])
+monthly_sales = st.sidebar.selectbox("Monthly sales range", ["Not Disclosed", "Below ₹50 Lakh", "₹50 Lakh - ₹2 Cr", "₹2 Cr - ₹10 Cr", "Above ₹10 Cr"])
+sales_team_size = st.sidebar.selectbox("Sales team size", ["Not Disclosed", "1 - 5", "6 - 10", "11 - 50", "51 - 200", "Above 200"])
+challenge = st.sidebar.text_area("Describe the business challenge (brief)")
+
+run_assess = st.sidebar.button("Run assessment and generate report")
 
 # =========================================================
-# VALUE CARDS
+# MAIN: handle assessment, LLM call, report download
 # =========================================================
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Diagnostic Depth</div>
-            <div class="metric-value">CXO Lens</div>
-            <div class="metric-copy">Frames questions around growth, channel economics, execution risk, and market readiness.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
+if run_assess:
+    # calculate readiness
+    score, status, interpretation, observations = calculate_readiness_score(
+        industry, target_market, turnover, current_distribution, monthly_sales, sales_team_size, challenge
     )
 
-with c2:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Core Strength</div>
-            <div class="metric-value">RTM</div>
-            <div class="metric-copy">Built for route-to-market, distribution expansion, retail activation, and sales transformation.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with c3:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Output Style</div>
-            <div class="metric-value">Board Note</div>
-            <div class="metric-copy">Generates roadmap, KPIs, risks, mitigation, and advisory workstreams.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with c4:
-    st.markdown(
-        """
-        <div class="metric-card">
-            <div class="metric-title">Engagement</div>
-            <div class="metric-value">Lead Ready</div>
-            <div class="metric-copy">Captures qualified consultation requests with business context and readiness score.</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-st.markdown("---")
-
-
-# =========================================================
-# SIDEBAR
-# =========================================================
-with st.sidebar:
-    st.header("Advisor Console")
-
-    st.markdown("### Advisory Modules")
-    advisory_mode = st.radio(
-        "Choose advisory focus",
-        [
-            "FMCG Market Expansion",
-            "Distributor Evaluation",
-            "Route-to-Market Strategy",
-            "Brand Launch",
-            "Dairy Expansion",
-            "Agriculture / Plantation",
-            "Government Project Advisory",
-            "General Business Growth"
-        ]
-    )
-
-    st.markdown("### AI Status")
-    groq_key = get_secret("GROQ_API_KEY", "")
-
-    if groq_key:
-        st.success("Groq API connected")
-    else:
-        st.warning("Groq API key missing. Fallback mode active.")
-
-    st.markdown("### Model")
-    st.code(get_secret("GROQ_MODEL", "llama-3.1-8b-instant"))
-
-    st.markdown("---")
-
-    st.markdown("### What This App Now Does")
-    st.write("- Expansion readiness scoring")
-    st.write("- Consulting-style diagnosis")
-    st.write("- 30-60-90 day roadmap")
-    st.write("- KPI dashboard")
-    st.write("- Risk and mitigation matrix")
-    st.write("- Downloadable advisory note")
-    st.write("- Qualified lead capture")
-
-
-# =========================================================
-# MAIN TABS
-# =========================================================
-tab1, tab2, tab3, tab4 = st.tabs(
-    [
-        "Growth Advisor",
-        "Expansion Diagnostic",
-        "Market X Capabilities",
-        "Consultation Request"
-    ]
-)
-
-
-# =========================================================
-# TAB 1 - GROWTH ADVISOR
-# =========================================================
-with tab1:
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-kicker">Executive Advisory</div>', unsafe_allow_html=True)
-    st.subheader("Ask a Strategic Business Question")
-
-    example_questions = {
-        "FMCG Market Expansion": "We are an FMCG brand planning to expand in Bihar and Jharkhand. How should we design our route-to-market strategy?",
-        "Distributor Evaluation": "How should we evaluate distributors before appointing them for a new FMCG territory?",
-        "Route-to-Market Strategy": "What is the best route-to-market model for a packaged food brand entering Tier 2 and Tier 3 towns?",
-        "Brand Launch": "We want to launch a new food brand in North India. What market research and launch plan should we follow?",
-        "Dairy Expansion": "We are a dairy company planning to expand value-added dairy products in eastern India. What should we evaluate?",
-        "Agriculture / Plantation": "We want to develop a palm plantation project with farmer engagement. What should be the roadmap?",
-        "Government Project Advisory": "How should a government-linked agriculture project be planned and monitored at district level?",
-        "General Business Growth": "Our sales have stagnated. How should we identify growth opportunities and improve market execution?"
+    # prepare diagnostic data for LLM
+    diagnostic_data = {
+        "company": company,
+        "contact": contact_name,
+        "industry": industry,
+        "target_market": target_market,
+        "turnover": turnover,
+        "current_distribution": current_distribution,
+        "monthly_sales": monthly_sales,
+        "sales_team_size": sales_team_size,
+        "challenge": challenge
     }
 
-    user_query = st.text_area(
-        "Describe your business challenge",
-        value=example_questions.get(advisory_mode, ""),
-        height=180
-    )
-
-    col_a, col_b, col_c = st.columns([1, 1, 2])
-
-    with col_a:
-        ask_button = st.button("Generate Advisory Note", type="primary")
-
-    with col_b:
-        clear_button = st.button("Clear Question")
-
-    if clear_button:
-        st.rerun()
-
-    if ask_button:
-        if user_query.strip() == "":
-            st.warning("Please enter your business question.")
-        else:
-            diagnostic_data = {
-                "advisory_mode": advisory_mode
-            }
-
-            with st.spinner("Preparing consulting-grade advisory note..."):
-                answer, source = generate_response(user_query, diagnostic_data)
-
-            st.session_state["latest_answer"] = answer
-            st.session_state["latest_query"] = user_query
-            st.session_state["latest_source"] = source
-
-            st.markdown("### Advisor Response")
-            st.markdown(answer)
-
-            with st.expander("Technical response source"):
-                st.write(source)
-
-    if "latest_answer" in st.session_state:
-        st.markdown(
-            """
-            <div class="success-box">
-                <b>Boardroom-ready next step:</b> Use the Expansion Diagnostic tab to convert this advisory into a more qualified market-entry report.
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-# =========================================================
-# TAB 2 - EXPANSION DIAGNOSTIC
-# =========================================================
-with tab2:
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-kicker">Growth Readiness Assessment</div>', unsafe_allow_html=True)
-    st.subheader("Expansion Diagnostic")
-
-    st.write(
-        "This diagnostic converts a business requirement into a readiness score, risk view, and downloadable advisory report."
-    )
-
-    d1, d2 = st.columns(2)
-
-    with d1:
-        diag_company = st.text_input("Company Name", key="diag_company")
-        diag_name = st.text_input("Your Name", key="diag_name")
-
-        diag_industry = st.selectbox(
-            "Industry",
-            [
-                "FMCG",
-                "Dairy",
-                "Agriculture",
-                "Government",
-                "Food Processing",
-                "Retail",
-                "Manufacturing",
-                "Startup",
-                "Other"
-            ],
-            key="diag_industry"
-        )
-
-        diag_turnover = st.selectbox(
-            "Approximate Annual Turnover",
-            [
-                "Below ₹10 Cr",
-                "₹10 Cr - ₹50 Cr",
-                "₹50 Cr - ₹100 Cr",
-                "₹100 Cr - ₹500 Cr",
-                "Above ₹500 Cr",
-                "Not Disclosed"
-            ],
-            key="diag_turnover"
-        )
-
-    with d2:
-        diag_target_market = st.text_input(
-            "Target Market / Geography",
-            placeholder="Example: Bihar, Jharkhand, UP, Kerala",
-            key="diag_target_market"
-        )
-
-        diag_current_distribution = st.selectbox(
-            "Current Distribution Strength",
-            [
-                "Not Disclosed",
-                "No existing distribution",
-                "Early-stage distribution",
-                "Moderate distributor network",
-                "Strong distributor network"
-            ],
-            key="diag_current_distribution"
-        )
-
-        diag_monthly_sales = st.selectbox(
-            "Current Monthly Sales",
-            [
-                "Not Disclosed",
-                "Below ₹50 Lakh",
-                "₹50 Lakh - ₹2 Cr",
-                "₹2 Cr - ₹10 Cr",
-                "Above ₹10 Cr"
-            ],
-            key="diag_monthly_sales"
-        )
-
-        diag_sales_team_size = st.selectbox(
-            "Sales Team Size",
-            [
-                "Not Disclosed",
-                "1 - 5",
-                "6 - 10",
-                "11 - 50",
-                "51 - 200",
-                "Above 200"
-            ],
-            key="diag_sales_team_size"
-        )
-
-    diag_challenge = st.text_area(
-        "Business Challenge",
-        placeholder="Example: We want to appoint distributors in Bihar but do not know which districts to prioritize.",
-        height=120,
-        key="diag_challenge"
-    )
-
-    run_diag = st.button("Run Expansion Diagnostic", type="primary")
-
-    if run_diag:
-        score, status, interpretation, observations = calculate_readiness_score(
-            industry=diag_industry,
-            target_market=diag_target_market,
-            turnover=diag_turnover,
-            current_distribution=diag_current_distribution,
-            monthly_sales=diag_monthly_sales,
-            sales_team_size=diag_sales_team_size,
-            challenge=diag_challenge
-        )
-
-        diagnostic_data = {
-            "company": diag_company,
-            "industry": diag_industry,
-            "target_market": diag_target_market,
-            "turnover": diag_turnover,
-            "current_distribution": diag_current_distribution,
-            "monthly_sales": diag_monthly_sales,
-            "sales_team_size": diag_sales_team_size,
-            "challenge": diag_challenge,
-            "readiness_score": score,
-            "readiness_status": status
-        }
-
-        service_area = identify_service(f"{diag_industry} {diag_challenge} {diag_target_market}")
-
-        diagnostic_query = f"""
-        Company is in {diag_industry}. Target market is {diag_target_market}.
-        Annual turnover is {diag_turnover}. Current distribution: {diag_current_distribution}.
-        Monthly sales: {diag_monthly_sales}. Sales team size: {diag_sales_team_size}.
-        Business challenge: {diag_challenge}.
-        Prepare a market expansion diagnostic and route-to-market recommendation.
-        """
-
-        with st.spinner("Running Market X diagnostic..."):
-            advisor_answer, source = generate_response(diagnostic_query, diagnostic_data)
-
-        st.session_state["diagnostic_answer"] = advisor_answer
-        st.session_state["diagnostic_score"] = score
-        st.session_state["diagnostic_status"] = status
-        st.session_state["diagnostic_interpretation"] = interpretation
-        st.session_state["diagnostic_observations"] = observations
-        st.session_state["diagnostic_source"] = source
-
-        st.markdown("### Expansion Readiness Score")
-
-        k1, k2, k3 = st.columns(3)
-
-        with k1:
-            st.metric("Readiness Score", f"{score}/100")
-
-        with k2:
-            st.metric("Status", status)
-
-        with k3:
-            st.metric("Advisory Area", service_area)
-
-        st.progress(score / 100)
-
-        if score >= 75:
-            st.markdown(
-                f"""
-                <div class="success-box">
-                    <b>{status}:</b> {interpretation}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        elif score >= 50:
-            st.markdown(
-                f"""
-                <div class="warning-box">
-                    <b>{status}:</b> {interpretation}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                f"""
-                <div class="warning-box">
-                    <b>{status}:</b> {interpretation}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        if observations:
-            st.markdown("### Diagnostic Observations")
-            for obs in observations:
-                st.write(f"- {obs}")
-
-        st.markdown("### Consulting Recommendation")
-        st.markdown(advisor_answer)
-
-        report_text = create_report_text(
-            company=diag_company,
-            name=diag_name,
-            industry=diag_industry,
-            target_market=diag_target_market,
-            turnover=diag_turnover,
-            service_area=service_area,
-            score=score,
-            status=status,
-            interpretation=interpretation,
-            challenge=diag_challenge,
-            advisor_answer=advisor_answer
-        )
-
-        st.download_button(
-            label="Download Advisory Report",
-            data=get_download_buffer(report_text),
-            file_name=f"market_x_growth_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain"
-        )
-
-        with st.expander("Technical response source"):
-            st.write(source)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-# =========================================================
-# TAB 3 - CAPABILITIES
-# =========================================================
-with tab3:
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-kicker">Consulting Capabilities</div>', unsafe_allow_html=True)
-    st.subheader("What Market X Can Deliver")
-
-    capability_rows = [
-        {
-            "Capability": "FMCG Route-to-Market",
-            "Business Question": "Where should we expand and what channel model should we use?",
-            "Typical Output": "District prioritization, distributor model, beat plan, launch roadmap"
-        },
-        {
-            "Capability": "Distributor Due Diligence",
-            "Business Question": "Which distributor is commercially and operationally fit?",
-            "Typical Output": "Distributor scorecard, risk profile, appointment recommendation"
-        },
-        {
-            "Capability": "Market Research",
-            "Business Question": "What is the real demand, competition, and pricing structure?",
-            "Typical Output": "Retail survey, competitor benchmarking, channel insights"
-        },
-        {
-            "Capability": "Sales Transformation",
-            "Business Question": "Why is sales productivity low?",
-            "Typical Output": "KPI dashboard, beat redesign, sales governance rhythm"
-        },
-        {
-            "Capability": "Brand Development",
-            "Business Question": "How should we position, price, and launch our brand?",
-            "Typical Output": "Positioning strategy, launch plan, retail visibility roadmap"
-        },
-        {
-            "Capability": "Government Project Advisory",
-            "Business Question": "How should a field project be designed and monitored?",
-            "Typical Output": "Implementation plan, monitoring framework, impact dashboard"
-        }
-    ]
-
-    st.dataframe(pd.DataFrame(capability_rows), use_container_width=True, hide_index=True)
-
-    st.markdown("### Board-Level FMCG Metrics Market X Can Track")
-
-    metric_rows = [
-        {
-            "Metric": "Numeric Distribution",
-            "Meaning": "Number of outlets carrying the product",
-            "Why It Matters": "Measures reach"
-        },
-        {
-            "Metric": "Weighted Distribution",
-            "Meaning": "Presence in high-sales-value outlets",
-            "Why It Matters": "Measures quality of reach"
-        },
-        {
-            "Metric": "Secondary Sales",
-            "Meaning": "Sales from distributor to retailer",
-            "Why It Matters": "Shows actual market movement"
-        },
-        {
-            "Metric": "Outlet Productivity",
-            "Meaning": "Average sales per active outlet",
-            "Why It Matters": "Shows sales quality"
-        },
-        {
-            "Metric": "Beat Adherence",
-            "Meaning": "Salesperson visits as per plan",
-            "Why It Matters": "Tracks field discipline"
-        },
-        {
-            "Metric": "Distributor ROI",
-            "Meaning": "Distributor return after costs",
-            "Why It Matters": "Ensures channel sustainability"
-        }
-    ]
-
-    st.dataframe(pd.DataFrame(metric_rows), use_container_width=True, hide_index=True)
-
-    st.markdown(
-        """
-        <div class="insight-box">
-            <b>What makes this more premium:</b> Large FMCG clients do not only want advice.
-            They want decision support, governance metrics, and execution visibility. This app now positions Market X as an execution-focused consulting partner.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-# =========================================================
-# TAB 4 - CONSULTATION REQUEST
-# =========================================================
-with tab4:
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-kicker">Qualified Lead Capture</div>', unsafe_allow_html=True)
-    st.subheader("Request a Market Expansion Consultation")
-
-    with st.form("lead_form"):
-        f1, f2 = st.columns(2)
-
-        with f1:
-            name = st.text_input("Your Name *")
-            designation = st.text_input("Designation")
-            company = st.text_input("Company Name")
-            email = st.text_input("Email")
-
-        with f2:
-            phone = st.text_input("Phone Number *")
-            industry = st.selectbox(
-                "Industry",
-                [
-                    "FMCG",
-                    "Dairy",
-                    "Agriculture",
-                    "Government",
-                    "Food Processing",
-                    "Retail",
-                    "Manufacturing",
-                    "Startup",
-                    "Other"
-                ]
-            )
-
-            turnover = st.selectbox(
-                "Approximate Annual Turnover",
-                [
-                    "Below ₹10 Cr",
-                    "₹10 Cr - ₹50 Cr",
-                    "₹50 Cr - ₹100 Cr",
-                    "₹100 Cr - ₹500 Cr",
-                    "Above ₹500 Cr",
-                    "Not Disclosed"
-                ]
-            )
-
-            consultation_type = st.selectbox(
-                "Consultation Need",
-                [
-                    "Market Expansion",
-                    "Distributor Appointment",
-                    "Route-to-Market Strategy",
-                    "Market Research",
-                    "Sales Transformation",
-                    "Brand Launch",
-                    "Government Project",
-                    "Agriculture / Plantation",
-                    "Other"
-                ]
-            )
-
-        location = st.text_input(
-            "Target Market / Location",
-            placeholder="Example: Bihar, Jharkhand, UP, Kerala"
-        )
-
-        challenge = st.text_area(
-            "Business Challenge *",
-            placeholder="Briefly describe your business challenge",
-            height=120
-        )
-
-        urgency = st.selectbox(
-            "Timeline",
-            [
-                "Immediate",
-                "Within 30 days",
-                "1 - 3 months",
-                "3 - 6 months",
-                "Exploratory"
-            ]
-        )
-
-        submitted = st.form_submit_button("Submit Consultation Request")
-
-        if submitted:
-            if name.strip() == "" or phone.strip() == "" or challenge.strip() == "":
-                st.error("Please fill Name, Phone Number, and Business Challenge.")
-            else:
-                score, status, interpretation, observations = calculate_readiness_score(
-                    industry=industry,
-                    target_market=location,
-                    turnover=turnover,
-                    current_distribution="Not Disclosed",
-                    monthly_sales="Not Disclosed",
-                    sales_team_size="Not Disclosed",
-                    challenge=challenge
-                )
-
-                lead_data = {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "name": name,
-                    "designation": designation,
-                    "company": company,
-                    "email": email,
-                    "phone": phone,
-                    "industry": industry,
-                    "turnover": turnover,
-                    "consultation_type": consultation_type,
-                    "target_location": location,
-                    "challenge": challenge,
-                    "urgency": urgency,
-                    "readiness_score": score,
-                    "readiness_status": status
-                }
-
-                save_lead(lead_data)
-
-                st.success("Your consultation request has been submitted.")
-                st.markdown(
-                    f"""
-                    <div class="success-box">
-                        <b>Initial readiness view:</b> {status} with a score of {score}/100.
-                        Market X can use this information to prepare a more focused discussion.
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
+    # generate advisory via LLM
+    query = f"Provide a board-level advisory for {company or 'a client'} in {industry} targeting {target_market or 'unspecified geography'}."
+    advisor_answer, meta = generate_response(query, diagnostic_data)
+
+    # show results
+    st.markdown(f"### Expansion Readiness — **{score}/100**  \n**Status:** {status}")
+    st.markdown(f"**Interpretation:** {interpretation}")
+    if observations:
+        st.markdown("**Observations:**")
+        for obs in observations:
+            st.markdown(f"- {obs}")
+
+    st.markdown("---")
+    st.markdown("## Advisor Recommendation")
+    st.markdown(advisor_answer)
+
+    # create report and download
+    report_text = create_report_text(company, contact_name, industry, target_market, turnover, identify_service(query), score, status, interpretation, challenge, advisor_answer)
+    buffer = get_download_buffer(report_text)
+    st.download_button("Download report (TXT)", buffer, file_name=f"marketx_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt")
+
+    # save lead
+    lead_data = {
+        "timestamp": datetime.now().isoformat(),
+        "company": company,
+        "contact": contact_name,
+        "industry": industry,
+        "target_market": target_market,
+        "turnover": turnover,
+        "score": score
+    }
+    try:
+        save_lead(lead_data)
+        st.success("Lead saved.")
+    except Exception:
+        st.warning("Could not save lead to CSV. Check file permissions.")
 
 # =========================================================
 # FOOTER
 # =========================================================
-st.markdown("---")
-st.markdown(
-    """
-    <div class="footer">
-    Disclaimer: Market X Growth Intelligence Advisor provides high-level business guidance.
-    Final recommendations should be validated through primary market research, commercial due diligence,
-    field assessment, and client-specific consulting engagement.
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("<div class='mx-footer'>Market X Growth Intelligence — Boardroom-grade advisory for market expansion.</div>", unsafe_allow_html=True)
